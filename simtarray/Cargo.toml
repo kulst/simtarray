@@ -1,0 +1,8 @@
+[package]
+name = "simtarray"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+mdarray = { git = "https://github.com/kulst/mdarray", branch = "main", default-features = false }
+num-traits = { version = "0.2", default-features = false }

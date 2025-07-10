@@ -1,0 +1,3 @@
+[workspace]
+members = ["simtarray", "simtarray-derive"]
+resolver = "3"

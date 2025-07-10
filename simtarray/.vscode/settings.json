@@ -1,0 +1,7 @@
+{
+  "rust-analyzer.cargo.target": "nvptx64-nvidia-cuda",
+  "rust-analyzer.check.targets": [
+    "nvptx64-nvidia-cuda",
+    "amdgcn-amd-amdhsa"
+  ]
+}
