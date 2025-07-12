@@ -12,13 +12,31 @@ impl<D0, T, M, S, I> SimtArray<T, S, I, M>
 where
     D0: Dim,
     M: Mapping<Shape = (D0,)>,
-    S: Space,
+    S: Scope,
     I: InitState,
 {
-    fn link<CS0: ComponentSet<S, C0, Arch = S::Arch>, C0: Component<S, Arch = S::Arch>>()
+    /// SAFETY: Must be called in a kernel uniform control flow state
+    unsafe fn write_once<O, P0, F>(self, f: F)
     where
-        (CS0,): PaddedComponentPartition<M::Shape, Arch = S::Arch>,
+        O: UnitScope<Arch = S::Arch>,
+        P0: Projection<O, S, Arch = S::Arch>,
+        (P0,): ProjectionSet<M::Shape, Arch = S::Arch>,
+        F: FnMut((D0,)) -> T,
     {
+        todo!()
+    }
+
+    /// SAFETY: Must be called in a kernel uniform control flow state
+    unsafe fn init_with<O, P0, F>(self, f: F) -> SimtArray<T, S, Init, M>
+    where
+        O: UnitScope<Arch = S::Arch>,
+        P0: Projection<O, S, Arch = S::Arch>,
+        (P0,): ProjectionSet<M::Shape, Arch = S::Arch>,
+        F: FnMut((D0,)) -> T,
+        S: SyncableScope,
+    {
+        unsafe { <S as SyncableScope>::sync() };
+        todo!()
     }
 }
 
@@ -27,7 +45,7 @@ mod init_state;
 
 mod size_type;
 
-use archs::{Component, ComponentSet, PaddedComponentPartition, Space};
+use archs::{Projection, ProjectionSet, Scope, SyncableScope, UnitScope};
 pub use init_state::*;
 use mdarray::{Dim, Mapping};
 

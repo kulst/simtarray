@@ -1,58 +1,65 @@
-use core::marker::PhantomData;
-
 use mdarray::Shape;
 use num_traits::{One, Zero};
 
 use crate::size_type::SizeType;
 
+#[cfg(target_arch = "amdgpu")]
+mod amdgpu;
+mod macros;
 #[cfg(target_arch = "nvptx64")]
 mod nvptx;
 
-#[cfg(target_arch = "amdgpu")]
-mod amdgpu;
-
+/// The architecture trait. Examples: Nvptx, Amdgpu
 pub trait Arch {
-    type Space<S: Space<Arch = Self>>: Space<Arch = Self>;
-    type Dim<S: Space<Arch = Self>, D: Component<S, Arch = Self>>: Component<S, Arch = Self>;
-
+    /// Each architecture has a hierachy with different scopes. For Nvptx these
+    /// scopes are for example 'Thread', 'Warp', 'Block', 'Cluster', 'Grid'
+    /// The architecture of the scope type must be Self to be a valid scope
+    /// for this architecture
+    type Scope<S: Scope<Arch = Self>>: Scope<Arch = Self>;
+    /// Each architecture has a specific BitSize it uses for indexing.
+    /// For Nvptx this is _32Bit as 32 Bit integer arithmetic is much faster than
+    /// 64 Bit integer arithmetic
     type IndexSize: SizeType;
 }
 
-pub trait Space {
+pub trait Scope {
     type Arch: Arch;
 }
 
-pub trait SyncableSpace: Space {
+/// A scope where all threads can be synchronized to each other.
+pub trait SyncableScope: Scope {
+    /// The function that must be used to synchronize all threads inside of this
+    /// scope.
     unsafe fn sync();
 }
 
-pub trait Component<S: Space<Arch = Self::Arch>> {
+pub trait UnitScope: Scope {}
+
+pub trait Projection<S: Scope<Arch = Self::Arch>, O: Scope<Arch = Self::Arch>> {
     type Arch: Arch;
+
+    type Head: Projection<S, O, Arch = Self::Arch>;
+    type Tail: Projection<S, O, Arch = Self::Arch>;
 
     fn dim() -> <<Self::Arch as Arch>::IndexSize as SizeType>::Unsigned;
     fn idx() -> <<Self::Arch as Arch>::IndexSize as SizeType>::Unsigned;
 }
 
-pub trait ComponentSet<S: Space<Arch = Self::Arch>, E: Component<S, Arch = Self::Arch>> {
+/// SAFETY: This trait must only be implemented for tuples of Projection's
+/// so that each dimension of the arch is contained exactly once.
+/// Example: For Nvptx this is implemented for example for
+/// (Xyz,), (Xy, Z), (X, Yz), (Xyz, (), ()), (X, Y, Z) and many more but
+/// not for (Xy, X, Z) because X is contained twice or (Xy,) because Z is missing.
+pub unsafe trait ProjectionSet<S: Shape> {
     type Arch: Arch;
-
-    type Head: Component<S, Arch = Self::Arch>;
-    type Tail: ComponentSet<S, E, Arch = Self::Arch>;
-    /// Augmented ComponentSet after adding E to Self
-    type Augmented: ComponentSet<S, NoComponent, Arch = Self::Arch>;
-
-    fn dim() -> <<Self::Arch as Arch>::IndexSize as SizeType>::Unsigned {
-        Self::Head::dim() * Self::Tail::dim()
-    }
-    fn idx() -> <<Self::Arch as Arch>::IndexSize as SizeType>::Unsigned {
-        Self::Head::idx() + Self::Head::dim() * Self::Tail::idx()
-    }
 }
 
-pub struct NoComponent;
-
-impl<A: Arch, S: Space<Arch = A>> Component<S> for NoComponent {
+impl<A: Arch, S: Scope<Arch = A>, O: Scope<Arch = A>> Projection<S, O> for () {
     type Arch = A;
+
+    type Head = ();
+
+    type Tail = ();
 
     fn dim() -> <<Self::Arch as Arch>::IndexSize as SizeType>::Unsigned {
         <<<Self::Arch as Arch>::IndexSize as SizeType>::Unsigned as One>::one()
@@ -61,23 +68,4 @@ impl<A: Arch, S: Space<Arch = A>> Component<S> for NoComponent {
     fn idx() -> <<Self::Arch as Arch>::IndexSize as SizeType>::Unsigned {
         <<<Self::Arch as Arch>::IndexSize as SizeType>::Unsigned as Zero>::zero()
     }
-}
-
-pub struct EmptySet;
-
-impl<A: Arch, S: Space<Arch = A>, E: Component<S, Arch = A>> ComponentSet<S, E> for EmptySet
-where
-    (E,): ComponentSet<S, NoComponent, Arch = A>,
-{
-    type Arch = A;
-
-    type Head = NoComponent;
-
-    type Tail = EmptySet;
-
-    type Augmented = (E,);
-}
-
-pub trait PaddedComponentPartition<S: Shape> {
-    type Arch: Arch;
 }
