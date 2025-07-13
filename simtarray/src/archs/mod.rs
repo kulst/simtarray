@@ -1,4 +1,4 @@
-use mdarray::Shape;
+use mdarray::{Dim, Shape};
 use num_traits::{One, Zero};
 
 use crate::size_type::SizeType;
@@ -7,7 +7,7 @@ use crate::size_type::SizeType;
 mod amdgpu;
 mod macros;
 #[cfg(target_arch = "nvptx64")]
-mod nvptx;
+pub mod nvptx;
 
 /// The architecture trait. Examples: Nvptx, Amdgpu
 pub trait Arch {
@@ -45,14 +45,40 @@ pub trait Projection<S: Scope<Arch = Self::Arch>, O: Scope<Arch = Self::Arch>> {
     fn idx() -> <<Self::Arch as Arch>::IndexSize as SizeType>::Unsigned;
 }
 
-/// SAFETY: This trait must only be implemented for tuples of Projection's
+/// # Safety
+/// This trait must only be implemented for tuples of Projection's
 /// so that each dimension of the arch is contained exactly once.
 /// Example: For Nvptx this is implemented for example for
 /// (Xyz,), (Xy, Z), (X, Yz), (Xyz, (), ()), (X, Y, Z) and many more but
 /// not for (Xy, X, Z) because X is contained twice or (Xy,) because Z is missing.
-pub unsafe trait ProjectionSet<S: Shape> {
+pub unsafe trait ProjectionSet<Sh: Shape, S: Scope<Arch = Self::Arch>, O: Scope<Arch = Self::Arch>>
+{
     type Arch: Arch;
 }
+
+pub trait ProjectionSetDim0<Sh: Shape, S: Scope<Arch = Self::Arch>, O: Scope<Arch = Self::Arch>>:
+    ProjectionSet<Sh, S, O>
+{
+    fn dim0() -> <<Self::Arch as Arch>::IndexSize as SizeType>::Unsigned;
+    fn idx0() -> <<Self::Arch as Arch>::IndexSize as SizeType>::Unsigned;
+}
+
+impl<P0: Projection<S, O, Arch = Self::Arch>, D0: Dim, S, O> ProjectionSetDim0<(D0,), S, O> for (P0,)
+where
+    S: Scope<Arch = Self::Arch>,
+    O: Scope<Arch = Self::Arch>,
+    (P0,): ProjectionSet<(D0,), S, O>,
+{
+    fn dim0() -> <<Self::Arch as Arch>::IndexSize as SizeType>::Unsigned {
+        <P0 as Projection<S, O>>::dim()
+    }
+    fn idx0() -> <<Self::Arch as Arch>::IndexSize as SizeType>::Unsigned {
+        <P0 as Projection<S, O>>::idx()
+    }
+}
+
+// FIXME: add macro for ProjectionSetDimX implementation and implement it for
+// tuples (P0,) ..= (P0, P1, ..., P5) and maybe more
 
 impl<A: Arch, S: Scope<Arch = A>, O: Scope<Arch = A>> Projection<S, O> for () {
     type Arch = A;

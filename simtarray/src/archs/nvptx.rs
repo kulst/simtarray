@@ -6,7 +6,7 @@ use super::macros::*;
 use super::*;
 use core::arch::nvptx::*;
 
-struct Nvptx;
+pub struct Nvptx;
 
 impl Arch for Nvptx {
     type Scope<S: Scope<Arch = Self>> = S;
@@ -14,9 +14,9 @@ impl Arch for Nvptx {
     type IndexSize = _32Bit;
 }
 
-struct Grid;
-struct Block;
-struct Thread;
+pub struct Grid;
+pub struct Block;
+pub struct Thread;
 
 impl_scope!(Nvptx, (Grid, Block, Thread));
 
@@ -29,13 +29,13 @@ impl SyncableScope for Block {
     }
 }
 
-struct X;
-struct Y;
-struct Z;
-struct Xy;
-struct Xz;
-struct Xyz;
-struct Yz;
+pub struct X;
+pub struct Y;
+pub struct Z;
+pub struct Xy;
+pub struct Xz;
+pub struct Xyz;
+pub struct Yz;
 
 impl_projection!(
     <Thread, Block> for X => { Nvptx, X, () },
@@ -86,14 +86,9 @@ impl_projections!(<Thread,Block> for Xy, Xz, Yz, Xyz => {Nvptx, (X, X, Y, X), (Y
 impl_projections!(<Thread,Grid> for Xy, Xz, Yz, Xyz => {Nvptx, (X, X, Y, X), (Y, Z, Z, Yz)});
 impl_projections!(<Block,Grid> for Xy, Xz, Yz, Xyz => {Nvptx, (X, X, Y, X), (Y, Z, Z, Yz)});
 
-unsafe impl<D1: Dim> ProjectionSet<(D1,)> for (Xyz,)
-where
-    (D1,): Shape,
-{
-    type Arch = Nvptx;
-}
+unsafe_impl_projection_sets!(Nvptx, (D1,), (<Thread, Grid>, <Thread, Block>, <Block, Grid>), {(Xyz,)});
 
-unsafe_impl_projection_set!(Nvptx, (D1, D2), {
+unsafe_impl_projection_sets!(Nvptx, (D1, D2), (<Thread, Grid>, <Thread, Block>, <Block, Grid>), {
     (Xyz, ()),
     (Yz, X),
     (Xz, Y),
@@ -104,7 +99,7 @@ unsafe_impl_projection_set!(Nvptx, (D1, D2), {
     ((), Xyz)
 });
 
-unsafe_impl_projection_set!(Nvptx, (D1, D2, D3), {
+unsafe_impl_projection_sets!(Nvptx, (D1, D2, D3), (<Thread, Grid>, <Thread, Block>, <Block, Grid>), {
     (Xyz, (), ()),
     (Yz, X, ()),
     (Yz, (), X),

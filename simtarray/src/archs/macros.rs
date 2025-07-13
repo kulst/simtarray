@@ -10,28 +10,38 @@ macro_rules! impl_scope {
 
 pub(crate) use impl_scope;
 
-macro_rules! impl_projection_set_inner {
-    ($arch:ty, ($($dim:ident),+), $type:ty) => {
-        unsafe impl<$($dim: Dim),+> ProjectionSet<($($dim),+)> for $type
+macro_rules! unsafe_impl_projection_set {
+    ($arch:ty, ($($dim:ident),+$(,)?), $scope:ty, $in:ty, $type:ty) => {
+        unsafe impl<$($dim: Dim),+> ProjectionSet<($($dim),+,), $scope, $in> for $type
         where
-            ($($dim),+): Shape,
+            ($($dim),+,): Shape,
         {
             type Arch = $arch;
         }
     }
 }
 
-pub(crate) use impl_projection_set_inner;
+pub(crate) use unsafe_impl_projection_set;
 
-macro_rules! unsafe_impl_projection_set {
-    ($arch:ty, $dim:tt, {$($type:ty),+}) => {
+macro_rules! unsafe_impl_projection_sets {
+    ($arch:ty, $dim:tt, $scoping:tt, {$($type:ty),+$(,)?}) => {
         $(
-            impl_projection_set_inner!($arch, $dim, $type);
+            unsafe_impl_projection_sets_inner!($arch, $dim, $scoping, $type);
         )+
     }
 }
 
-pub(crate) use unsafe_impl_projection_set;
+pub(crate) use unsafe_impl_projection_sets;
+
+macro_rules! unsafe_impl_projection_sets_inner {
+    ($arch:ty, $dim:tt, ($(<$scope:ty, $in:ty>),+$(,)?), $type:ty) => {
+        $(
+            unsafe_impl_projection_set!($arch, $dim, $scope, $in, $type);
+        )+
+    }
+}
+
+pub(crate) use unsafe_impl_projection_sets_inner;
 
 macro_rules! impl_projection {
     (<$space:ty, $in:ty> for $type:ty => {$arch:ty, $head:ty, $tail:ty}, {$dim:stmt}, {$idx:stmt}) => {
