@@ -83,11 +83,85 @@ where
         unsafe { ViewMut::new_unchecked(self.ptr, self.mapping.clone()) }
     }
 }
+type Unsigned<Sc> = <<<Sc as Scope>::Arch as Arch>::IndexSize as SizeType>::Unsigned;
 
 impl<T, Sc, I: Splitable + Viewable, L: Layout, D0: Dim> SimtArray<T, Sc, I, L, (D0,)>
 where
     Sc: Scope,
 {
+    pub fn view_with_limited_quantity<'a, R: RangeBounds<usize>, E, Ps>(
+        &'a self,
+        quantity: Unsigned<Sc>,
+    ) -> Option<
+        View<
+            'a,
+            T,
+            <(StepRange<R, isize>,) as ViewIndex>::Shape<(D0,)>,
+            <(StepRange<R, isize>,) as ViewIndex>::Layout<L>,
+        >,
+    >
+    where
+        E: Scope<Arch = Sc::Arch>,
+        Ps: ProjectionSetDim0<(D0,), E, Sc, Arch = Sc::Arch>,
+    {
+        let dim0 = Ps::dim0();
+        let idx0 = Ps::idx0();
+        if idx0.as_() > self.mapping.dim(0) {
+            return None;
+        }
+        if idx0 >= quantity {
+            return None;
+        }
+        let quantity = dim0.min(quantity);
+
+        unsafe {
+            Some(
+                View::<_, (D0,), L>::new_unchecked(self.ptr, self.mapping.clone()).into_view(
+                    StepRange {
+                        range: idx0.as_()..,
+                        step: quantity.as_() as isize,
+                    },
+                ),
+            )
+        }
+    }
+    pub fn view_mut_with_limited_quantity<'a, R: RangeBounds<usize>, E, Ps>(
+        &'a mut self,
+        quantity: Unsigned<Sc>,
+    ) -> Option<
+        SimtArrayViewMut<
+            'a,
+            T,
+            Sc,
+            <(StepRange<R, isize>,) as ViewIndex>::Shape<(D0,)>,
+            <(StepRange<R, isize>,) as ViewIndex>::Layout<L>,
+        >,
+    >
+    where
+        Sc: SyncableScope,
+        E: UnitScope<Arch = Sc::Arch>,
+        Ps: ProjectionSetDim0<(D0,), E, Sc, Arch = Sc::Arch>,
+    {
+        let dim0 = Ps::dim0();
+        let idx0 = Ps::idx0();
+        if idx0.as_() > self.mapping.dim(0) {
+            return None;
+        }
+        if idx0 >= quantity {
+            return None;
+        }
+        let quantity = dim0.min(quantity);
+        unsafe {
+            Some(SimtArrayViewMut {
+                inner: ViewMut::<_, (D0,), L>::new_unchecked(self.ptr, self.mapping.clone())
+                    .into_view(StepRange {
+                        range: idx0.as_()..,
+                        step: quantity.as_() as isize,
+                    }),
+                scope: PhantomData,
+            })
+        }
+    }
     pub fn view<'a, R: RangeBounds<usize>, E, Ps>(
         &'a self,
     ) -> Option<
@@ -107,6 +181,7 @@ where
         if idx0.as_() > self.mapping.dim(0) {
             return None;
         }
+
         unsafe {
             Some(
                 View::<_, (D0,), L>::new_unchecked(self.ptr, self.mapping.clone()).into_view(
