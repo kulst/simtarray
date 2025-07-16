@@ -77,7 +77,7 @@ where
     {
         let dim0 = Ps::dim0();
         let idx0 = Ps::idx0();
-        if idx0.as_() > self.mapping.dim(0) {
+        if idx0.as_() >= self.mapping.dim(0) {
             return None;
         }
         if idx0 >= quantity {
@@ -107,7 +107,7 @@ where
     {
         let dim0 = Ps::dim0();
         let idx0 = Ps::idx0();
-        if idx0.as_() > self.mapping.dim(0) || idx0 >= quantity {
+        if idx0.as_() >= self.mapping.dim(0) || idx0 >= quantity {
             return SimtArrayMutRef {
                 view: None,
                 scope: PhantomData,
@@ -136,7 +136,7 @@ where
     {
         let dim0 = Ps::dim0();
         let idx0 = Ps::idx0();
-        if idx0.as_() > self.mapping.dim(0) {
+        if idx0.as_() >= self.mapping.dim(0) {
             return None;
         }
 
@@ -163,7 +163,7 @@ where
     {
         let dim0 = Ps::dim0();
         let idx0 = Ps::idx0();
-        if idx0.as_() > self.mapping.dim(0) {
+        if idx0.as_() >= self.mapping.dim(0) {
             return SimtArrayMutRef {
                 view: None,
                 scope: PhantomData,
@@ -217,7 +217,7 @@ where
     {
         let dim0 = Ps::dim0();
         let idx0 = Ps::idx0();
-        if idx0.as_() > self.mapping.dim(0) {
+        if idx0.as_() >= self.mapping.dim(0) {
             return None;
         }
         let view_parts = unsafe {
